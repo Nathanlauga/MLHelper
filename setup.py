@@ -12,10 +12,16 @@ setup(
     author='Nathan LAUGA',
     author_email='nathan.lauga@protonmail.com',
     # url='https://github.com/Nathanlauga/transparentai',
-    packages=['MLHelper'],
+    packages=[
+        'MLHelper',
+        'MLHelper/utils',
+        'MLHelper/data',
+        'MLHelper/data/transform',
+        'MLHelper/analyse',
+        'MLHelper/analyse/eda'],
     include_package_data=True,
     install_requires=[
-        'pandas', 'matplotlib', 'seaborn', 'scikit-learn', 'ipython'
+        'pandas', 'matplotlib', 'seaborn', 'scikit-learn', 'ipython', 'facets-overview'
     ],
     long_description=long_description,
     python_requires='>=3.5'

@@ -6,3 +6,5 @@ __author__ = ["NathanLauga"]
 __license__ = "MIT"
 
 from .ClassifierAnalysis import ClassifierAnalysis
+from .data import * 
+from .analyse import *
