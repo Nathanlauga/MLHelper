@@ -14,7 +14,7 @@ git clone https://github.com/Nathanlauga/MLHelper.git
 ### 2. Install locally
 ```
 cd MLHelper
-./install.sh
+python setup.py install
 ```
 
 ### 3. Check if the package is installed

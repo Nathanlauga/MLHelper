@@ -151,6 +151,7 @@ def stack_bar_plot(ax, tab, labels, legend_labels):
     """
     colors = sns.color_palette("colorblind", len(legend_labels))
 
+    # tab.div(tab.sum(axis=1), axis=0).round(2).astype(int)
     for i, row in tab.iterrows():
         tab.loc[i] = ((row / row.sum()).round(2)*100).astype(int)
 
@@ -176,8 +177,7 @@ def stack_bar_plot(ax, tab, labels, legend_labels):
 def show_numerical_var(df, var, target=None):
     """
     Show variable information in graphics for numerical variables.
-    At least the displot & boxplot. 
-
+    At least the displot & boxplot.
     If target is set 2 more plots : stack plot and stack plot with percentage
 
     Parameters
@@ -192,26 +192,35 @@ def show_numerical_var(df, var, target=None):
     fig, ax = plt.subplots(figsize=(16, 5))
 
     ax = plt.subplot(121)
-    sns.distplot(df[var])
+    if target == None:
+        sns.distplot(df[var])
+    else:
+        labels = sorted(df[target].unique())
+        for l in labels:
+            df_target = df[df[target] == l]
+            if df_target[var].nunique() <= 1:
+                sns.distplot(df_target[var], kde=False)
+            else:
+                sns.distplot(df_target[var])
+            del df_target
 
     ax = plt.subplot(122)
     x = df[target] if target != None else None
 
     sns.boxplot(x=x, y=df[var])
-
+    
     if target != None:
         fig, ax = plt.subplots(figsize=(16, 5))
-        labels = sorted(df[target].unique())
         tab = pd.crosstab(df[var], df[target])
-
+        
         ax = plt.subplot(121)
         stack_plot(ax=ax, tab=tab, labels=labels)
 
-        for i, row in tab.iterrows():
-            tab.loc[i] = (row / row.sum()).round(2)
+        tab.div(tab.sum(axis=1), axis=0)
+
         ax = plt.subplot(122)
         stack_plot(ax=ax, tab=tab, labels=labels)
-
+        
     plt.show()
 
 
@@ -263,6 +272,49 @@ def show_categorical_var(df, var, target=None):
     plt.show()
 
 
+def show_datetime_var(df, var, target=None):
+    """
+    Show variable information in graphics for datetime variables.
+    Display only the time series line if no target is set else, it shows
+    2 graphics one with differents lines by value of target and one stack line plot
+
+    If difference between maximum date and minimum date is above 1000 then plot by year.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    var: str
+        Column name that contains datetime values
+    target: str (optional)
+        Target column for classifier
+    """
+    df = df.copy()
+    fig, ax = plt.subplots(figsize=(16, 5))
+
+    date_min = df[var].min()
+    date_max = df[var].max()
+    if (date_max - date_min).days > 1000:
+        df[var] = df[var].dt.year
+
+    if target == None:
+        val_cnt = df[var].value_counts()
+        sns.lineplot(data=val_cnt)
+    else:
+        ax = plt.subplot(121)
+
+        legend_labels = sorted(df[target].unique())
+        tab = pd.crosstab(df[var], df[target])
+        sns.lineplot(data=tab)
+
+        tab.div(tab.sum(axis=1), axis=0)
+
+        ax = plt.subplot(122)
+        stack_plot(ax=ax, tab=tab, labels=legend_labels)
+
+    plt.show()
+
+
 def show_meta_var(df, var):
     """
     Display some meta informations about a specific variable of a given dataframe
@@ -288,7 +340,7 @@ def show_df_vars(df, target=None):
     If target is set, complement visuals will be added to take a look on the
     influence that a variable can have on target
 
-    Data type handle : categorical, numerical
+    Data type handle : categorical, numerical, datetime
 
     Parameters
     ----------
@@ -299,15 +351,32 @@ def show_df_vars(df, target=None):
     """
     cat_vars = df.select_dtypes('object')
     num_vars = df.select_dtypes('number')
+    dat_vars = df.select_dtypes('datetime')
 
     display(Markdown('### Numerical variables'))
     for var in num_vars:
         display(Markdown('*****'))
         show_meta_var(df, var)
+        if len(df[var].unique()) <= 1:
+            display('Only one value.')
+            continue
         show_numerical_var(df, var, target)
 
     display(Markdown('### Categorical variables'))
     for var in cat_vars:
         display(Markdown('*****'))
         show_meta_var(df, var)
+        if len(df[var].unique()) <= 1:
+            display('Only one value.')
+            continue
         show_categorical_var(df, var, target)
+
+    display(Markdown('### Datetime variables'))
+    for var in dat_vars:
+        display(Markdown('*****'))
+        show_meta_var(df, var)
+        if len(df[var].unique()) <= 1:
+            display('Only one value.')
+            continue
+        show_datetime_var(df, var, target)
+
