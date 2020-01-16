@@ -409,7 +409,7 @@ def show_numerical_jointplot(df, var1, var2, target=None):
     plt.show()
 
     
-def show_df_numerical_two_vars(df, target=None):
+def show_df_numerical_relations(df, target=None):
     """
     Show all numerical variables 2 by 2 with graphics understand their relation.
     If target is set, separate dataset for each target value.
@@ -432,3 +432,58 @@ def show_df_numerical_two_vars(df, target=None):
         display(Markdown('*****'))
         display(Markdown(f'Joint plot for **{var1}** & **{var2}**'))
         show_numerical_jointplot(df=df, var1=var1, var2=var2, target=target)        
+
+
+def show_barplot_cat_num_var(df, cat_var, num_var, target=None):
+    """
+    Show boxplots for a specific pair of categorical and numerical variables
+    If target is set, separate dataset for each target value.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    cat_var: str
+        Column name that contains categorical values
+    num_var: str
+        Column name that contains numerical values
+    target: str (optional)
+        Target column for classifier
+    """    
+    val_cnt = df[cat_var].value_counts()
+    if len(val_cnt) > 10:
+        val_cnt = val_cnt.head(10)
+        
+    df_plot = df[df[cat_var].apply(lambda x: x in val_cnt.index.values)]
+    
+    fig, ax = plt.subplots(figsize=(16, 5))
+    palette = "Blues" if target == None else "colorblind"
+    sns.boxplot(x=cat_var, y=num_var, hue=target, data=df_plot, palette=palette)
+    plt.xticks(rotation=60)
+    plt.show()
+    
+
+def show_df_num_cat_relations(df, target=None):
+    """
+    Show boxplots for each pair of categorical and numerical variables
+    If target is set, separate dataset for each target value.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    target: str (optional)
+        Target column for classifier 
+    """
+    df = df.copy()
+    df = remove_var_with_one_value(df)
+    
+    num_vars = df.select_dtypes('number')
+    cat_vars = df.select_dtypes('object')
+    
+    var_combi = [(v1, v2) for v1 in num_vars.columns for v2 in cat_vars.columns if (v1 != v2) & (v2 != target)]
+    
+    for num_var, cat_var in var_combi:
+        display(Markdown('*****'))
+        display(Markdown(f'Box plot for **{cat_var}** & **{num_var}**'))
+        show_barplot_cat_num_var(df=df, cat_var=cat_var, num_var=num_var, target=target)
