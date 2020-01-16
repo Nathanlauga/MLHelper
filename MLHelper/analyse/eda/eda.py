@@ -4,6 +4,8 @@ import base64
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import scipy.stats as ss
+from sklearn.preprocessing import LabelEncoder
 from IPython.display import display, Markdown
 from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator
 
@@ -487,3 +489,168 @@ def show_df_num_cat_relations(df, target=None):
         display(Markdown('*****'))
         display(Markdown(f'Box plot for **{cat_var}** & **{num_var}**'))
         show_barplot_cat_num_var(df=df, cat_var=cat_var, num_var=num_var, target=target)
+
+    
+def plot_correlation_matrix(corr_df):
+    """
+    Plot a seaborn heatmap based on a correlation dataframe.
+    
+    Parameters
+    ----------
+    corr_df: pd.DataFrame
+        Correlation dataframe
+    """
+    fig, ax = plt.subplots(figsize=(10,9))
+    ax = sns.heatmap(
+        corr_df, 
+        vmin=-1, vmax=1, center=0,
+        cmap=sns.diverging_palette(220, 20, n=200),
+        square=True,
+        annot=True
+    )
+    ax.set_xticklabels(
+        ax.get_xticklabels(),
+        rotation=45,
+        horizontalalignment='right'
+    );    
+    plt.show()
+    
+    
+
+def cramers_v(x, y):
+    """
+    Function that return the Cramer V value for two categorical variables using
+    chi square. This correlation metric is between 0 and 1.
+    
+    Code source found on this article : 
+    https://towardsdatascience.com/the-search-for-categorical-correlation-a1cf7f1888c9
+    
+    Parameters
+    ----------
+    x:
+        first categorical variable
+    y:
+        second categorical variable
+        
+    Returns
+    -------
+    float:
+        Cramer V value
+    """
+    confusion_matrix = pd.crosstab(x,y)
+    chi2 = ss.chi2_contingency(confusion_matrix)[0]
+    n = confusion_matrix.sum().sum()
+    phi2 = chi2/n
+    r,k = confusion_matrix.shape
+    phi2corr = max(0, phi2-((k-1)*(r-1))/(n-1))
+    rcorr = r-((r-1)**2)/(n-1)
+    kcorr = k-((k-1)**2)/(n-1)
+    return np.sqrt(phi2corr/min((kcorr-1),(rcorr-1)))
+
+
+def encode_categorical_vars(df):
+    """
+    Encode categorical variables from a dataframe to be numerical (discrete)
+    It uses LabelEncoder class from scikit-learn
+    
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to update
+    
+    Returns
+    -------
+    pd.DataFrame
+        Encoded dataframe
+    """
+    cat_vars = df.select_dtypes('object').columns
+    data_encoded = df.copy()
+    
+    # Use Label Encoder for categorical columns (including target column)
+    for feature in cat_vars:
+        le = LabelEncoder()
+        le.fit(data_encoded[feature])
+
+        data_encoded[feature] = le.transform(data_encoded[feature])
+    
+    return data_encoded
+
+
+def init_corr_matrix(columns, index, fill_diag=1.):
+    """
+    Return a matrix n by m fill of 0 (except on the diagonal if squared matrix)
+    Recommended for correlation matrix
+    
+    Parameters
+    ----------
+    columns: 
+        list of columns names
+    index:
+        list of index names
+    fill_diag: float
+        if squared matrix then set diagonal with this value
+        
+    Returns
+    -------
+    pd.DataFrame
+        Initialized matrix
+    """
+    zeros = np.zeros((len(index),len(columns)), float)
+    if len(columns) == len(index):
+        rng = np.arange(len(zeros))
+        zeros[rng, rng] = fill_diag
+    return pd.DataFrame(zeros, columns=columns, index=index)
+
+
+def show_df_correlations(df):
+    """
+    Show differents correlations matrix for 3 cases :
+    - numerical to numerical (using Pearson coeff)
+    - categorical to categorical (using Cramers V & Chi square)
+    - numerical to categorical (discrete) (using Point Biserial)
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    """
+    df = df.copy()
+    df = remove_var_with_one_value(df)
+    
+    num_df = df.select_dtypes('number')
+    cat_df = df.select_dtypes('object')
+    num_vars = num_df.columns
+    cat_vars = cat_df.columns
+    
+    pearson_corr = num_df.corr()
+    display(Markdown('#### Pearson correlation matrix for numerical variables'))
+    plot_correlation_matrix(pearson_corr)
+        
+    var_combi = [tuple(sorted([v1, v2])) for v1 in cat_vars for v2 in cat_vars if v1 != v2]
+    var_combi = list(set(var_combi))
+    
+    cramers_v_corr = init_corr_matrix(columns=cat_vars, index=cat_vars)
+   
+    for var1, var2 in var_combi:
+        corr = cramers_v(cat_df[var1],cat_df[var2])
+        cramers_v_corr.loc[var1, var2] = corr
+        cramers_v_corr.loc[var2, var1] = corr
+    
+    display(Markdown('#### Cramers V correlation matrix for categorical variables'))
+    plot_correlation_matrix(cramers_v_corr)
+        
+    data_encoded = encode_categorical_vars(df)
+#     pearson_corr = data_encoded.corr()
+#     display(Markdown('#### Pearson correlation matrix for categorical variables'))
+#     plot_correlation_matrix(pearson_corr)
+
+    var_combi = [(v1, v2) for v1 in cat_vars for v2 in num_vars if v1 != v2]
+    
+    pbs_corr = init_corr_matrix(columns=num_vars, index=cat_vars, fill_diag=0.)
+    
+    for cat_var, num_var in var_combi:
+        corr, p_value = ss.pointbiserialr(data_encoded[cat_var], data_encoded[num_var])
+        pbs_corr.loc[cat_var, num_var] = corr
+    
+    display(Markdown('#### Point Biserial correlation matrix for numerical & categorical variables'))
+    plot_correlation_matrix(pbs_corr)
