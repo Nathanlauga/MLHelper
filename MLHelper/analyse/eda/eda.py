@@ -380,3 +380,55 @@ def show_df_vars(df, target=None):
             continue
         show_datetime_var(df, var, target)
 
+
+def show_numerical_jointplot(df, var1, var2, target=None):
+    """
+    Show two numerical variables relations with jointplot.
+    
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    var1: str
+        Column name that contains first numerical values
+    var2: str
+        Column name that contains second numerical values
+    target: str (optional)
+        Target column for classifier
+    """
+    if target == None:
+        g = sns.jointplot(var1, var2, data=df, kind="hex", space=0, height=8)
+    else:
+        legend_labels = sorted(df[target].unique())
+        grid = sns.JointGrid(x=var1, y=var2, data=df, height=7)
+
+        g = grid.plot_joint(sns.scatterplot, hue=target, data=df, alpha=0.3)
+        for l in legend_labels:
+            sns.distplot(df.loc[df[target]==l, var1], ax=g.ax_marg_x)
+            sns.distplot(df.loc[df[target]==l, var2], ax=g.ax_marg_y, vertical=True)
+    plt.show()
+
+    
+def show_df_numerical_two_vars(df, target=None):
+    """
+    Show all numerical variables 2 by 2 with graphics understand their relation.
+    If target is set, separate dataset for each target value.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    target: str (optional)
+        Target column for classifier 
+    """
+    num_vars = df.select_dtypes('number')
+    num_vars = remove_var_with_one_value(num_vars)
+
+    cols = num_vars.columns.values
+    var_combi = [tuple(sorted([v1, v2])) for v1 in cols for v2 in cols if v1 != v2]
+    var_combi = list(set(var_combi))
+
+    for var1, var2 in var_combi:
+        display(Markdown('*****'))
+        display(Markdown(f'Joint plot for **{var1}** & **{var2}**'))
+        show_numerical_jointplot(df=df, var1=var1, var2=var2, target=target)        

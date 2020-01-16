@@ -38,3 +38,27 @@ def str_to_file(string: str, fname: str):
         file.write(string)
     file.close()
     print('File created at ', fpath)
+
+
+def remove_var_with_one_value(df):
+    """
+    Remove dataset's columns that only contains one unique value.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to inspect
+    
+    Returns
+    -------
+    pd.DataFrame:
+        Dataframe without columns with only one unique value
+    """
+    if len(df) <= 1:
+        return df
+    
+    for var in df:
+        if df[var].nunique() <= 1:
+            del df[var]
+
+    return df
